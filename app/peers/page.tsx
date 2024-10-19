@@ -15,7 +15,7 @@ export default function PeersPage() {
   return (
     <WherebyProvider>
       <MyVideoApp
-        roomUrl="https://yeahyeah.whereby.com/yeahhh315c1fdc-e94c-4a8f-8423-8eff6c0b75c9"
+        roomUrl="https://yeahyeah.whereby.com/test100363d44-36dc-43ae-93b3-09dd1c6567a0"
         localStream={localStream}
       />
     </WherebyProvider>

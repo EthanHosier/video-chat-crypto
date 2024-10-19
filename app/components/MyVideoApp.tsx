@@ -1,16 +1,16 @@
 import * as React from "react";
 import { useRoomConnection, VideoView } from "@whereby.com/browser-sdk/react";
+import ChatSidebar from "./ChatSidebar";
 
 interface MyVideoAppProps {
   roomUrl: string;
   localStream: MediaStream;
 }
 
-const MAX_VISIBLE_PARTICIPANTS = 12;
-
 export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [maxVisibleParticipants, setMaxVisibleParticipants] = React.useState(6);
 
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
@@ -21,6 +21,30 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
 
   const { remoteParticipants, localParticipant } = state;
   const { joinRoom, leaveRoom } = actions;
+
+  const updateMaxVisibleParticipants = React.useCallback(() => {
+    const width = window.innerWidth;
+    if (width < 640) {
+      // Small phones
+      setMaxVisibleParticipants(7);
+    } else if (width < 768) {
+      // Large phones
+      setMaxVisibleParticipants(4);
+    } else if (width < 1024) {
+      // Tablets
+      setMaxVisibleParticipants(6);
+    } else {
+      // Desktops and larger screens
+      setMaxVisibleParticipants(8);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    updateMaxVisibleParticipants();
+    window.addEventListener("resize", updateMaxVisibleParticipants);
+    return () =>
+      window.removeEventListener("resize", updateMaxVisibleParticipants);
+  }, [updateMaxVisibleParticipants]);
 
   React.useEffect(() => {
     const join = async () => {
@@ -43,11 +67,11 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
 
   const visibleParticipants = remoteParticipants.slice(
     0,
-    MAX_VISIBLE_PARTICIPANTS - 1
+    maxVisibleParticipants - 1
   );
   const additionalParticipants = Math.max(
     0,
-    remoteParticipants.length - (MAX_VISIBLE_PARTICIPANTS - 1)
+    remoteParticipants.length - (maxVisibleParticipants - 1)
   );
 
   if (error) {
@@ -59,7 +83,7 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
   }
 
   return (
-    <div className="bg-gray-900 h-screen w-screen p-6 items-start justify-start">
+    <div className="bg-gray-900 h-screen w-screen p-6 items-start justify-start bg-black relative">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {/* Visible Participants */}
         {visibleParticipants.map((p) => (
@@ -80,22 +104,6 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
             )}
             <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm">
               {p.displayName || "Guest"}
-            </div>
-          </div>
-        ))}
-
-        {/* Placeholder Participants */}
-        {Array.from({ length: 16 }).map((_, index) => (
-          <div
-            key={index}
-            className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative"
-            style={{ minWidth: "150px", maxWidth: "300px" }}
-          >
-            <div className="w-full h-full flex items-center justify-center text-white">
-              No video
-            </div>
-            <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm">
-              Guest
             </div>
           </div>
         ))}
@@ -123,6 +131,7 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
           </div>
         )}
       </div>
+      <ChatSidebar />
     </div>
   );
 }
