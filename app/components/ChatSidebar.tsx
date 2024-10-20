@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { MessageCircle, ChevronDown, Send, Bell } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { MessageCircle, ChevronDown, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "@whereby.com/browser-sdk/react";
+import toast from "react-hot-toast";
 
 interface Message {
   id: number;
@@ -9,11 +10,20 @@ interface Message {
   sender: "user" | "other";
 }
 
+interface ChatMessageData {
+  type: "chat" | "moneyTransfer";
+  text: string;
+  senderName: string;
+  amount?: string;
+  recipient?: string;
+}
+
 const ChatSidebar: React.FC<{
   sendAMessage: (text: string) => void;
   chatMessages: ChatMessage[];
   localId: string;
-}> = ({ sendAMessage, chatMessages, localId }) => {
+  displayName: string;
+}> = ({ sendAMessage, chatMessages, localId, displayName }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -27,8 +37,8 @@ const ChatSidebar: React.FC<{
   useEffect(() => {
     console.log({ chatMessages });
     setMessages(
-      chatMessages.map((message) => ({
-        id: Number(message.timestamp),
+      chatMessages.map((message, index) => ({
+        id: index, // Fallback to current timestamp if message.timestamp is undefined
         text: message.text,
         sender: message.senderId === localId ? "user" : "other",
       }))
@@ -49,14 +59,49 @@ const ChatSidebar: React.FC<{
 
   const sendMessage = () => {
     if (inputText.trim()) {
-      setMessages([
-        ...messages,
-        { id: Date.now(), text: inputText, sender: "user" },
-      ]);
-      sendAMessage(inputText);
+      const messageData: ChatMessageData = {
+        type: "chat",
+        text: inputText,
+        senderName: displayName,
+      };
+      sendAMessage(JSON.stringify(messageData));
       setInputText("");
     }
   };
+
+  const renderMessage = (message: ChatMessage, key: string) => {
+    try {
+      const parsedMessage: ChatMessageData = JSON.parse(message.text);
+
+      if (parsedMessage.type === "moneyTransfer") {
+        toast.success(
+          `Sent ${parsedMessage.amount} USDT to ${parsedMessage.recipient}`
+        );
+        return null;
+      }
+
+      return (
+        <div key={key} className="mb-2">
+          <span className="font-bold">{parsedMessage.senderName}: </span>
+          {parsedMessage.text}
+        </div>
+      );
+    } catch (e) {
+      // Fallback for non-JSON messages (if any)
+      return (
+        <div key={key} className="mb-2">
+          <span className="font-bold">
+            {message.senderId === localId ? "You" : "Unknown"}:{" "}
+          </span>
+          {message.text}
+        </div>
+      );
+    }
+  };
+
+  const messagess = useMemo(() => {
+    return chatMessages.map((m, i) => renderMessage(m, i + ""));
+  }, [chatMessages]);
 
   return (
     <>
@@ -87,24 +132,7 @@ const ChatSidebar: React.FC<{
           >
             <ChevronDown size={24} />
           </button>
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[70%] p-3 rounded-2xl break-words ${
-                  message.sender === "user"
-                    ? "bg-blue-500 text-white rounded-br-none"
-                    : "bg-gray-200 text-gray-800 rounded-bl-none"
-                }`}
-              >
-                {message.text}
-              </div>
-            </div>
-          ))}
+          <div className="overflow-y-auto flex-grow">{messagess}</div>
           <div ref={messagesEndRef} />
         </div>
         <div className="p-4 bg-gray-50 border-t border-gray-200">

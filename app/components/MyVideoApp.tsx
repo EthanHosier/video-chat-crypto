@@ -3,17 +3,39 @@ import { useRoomConnection, VideoView } from "@whereby.com/browser-sdk/react";
 import ChatSidebar from "./ChatSidebar";
 import { PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useMetaMaskLogin } from "@/hooks/useMetaMask";
+import { getPeerByUuid } from "@/lib/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+type MoneyTransferMessage = {
+  type: "moneyTransfer";
+  amount: string;
+  recipient: string;
+};
 
 interface MyVideoAppProps {
   roomUrl: string;
   localStream: MediaStream;
   displayName: string; // Add this prop to receive the desired display name
+  externalId: string;
 }
 
 export default function MyVideoApp({
   roomUrl,
-  localStream,
   displayName,
+  externalId,
 }: MyVideoAppProps) {
   const router = useRouter();
   const [error, setError] = React.useState<Error | null>(null);
@@ -21,12 +43,18 @@ export default function MyVideoApp({
   const [maxVisibleParticipants, setMaxVisibleParticipants] = React.useState(6);
   const [isMuted, setIsMuted] = React.useState(true);
   const [isCameraOff, setIsCameraOff] = React.useState(false);
-
+  const [selectedPeer, setSelectedPeer] = React.useState<{
+    displayName: string;
+    metamaskWallet: string;
+  } | null>(null);
+  const { account, sendUSDT, loading: sendingUSDT } = useMetaMaskLogin();
+  const [usdtAmount, setUsdtAmount] = React.useState("");
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
       audio: true,
       video: true,
     },
+    externalId,
   });
 
   const { remoteParticipants, localParticipant, chatMessages } = state;
@@ -39,13 +67,13 @@ export default function MyVideoApp({
       setMaxVisibleParticipants(7);
     } else if (width < 768) {
       // Large phones
-      setMaxVisibleParticipants(4);
+      setMaxVisibleParticipants(7);
     } else if (width < 1024) {
       // Tablets
-      setMaxVisibleParticipants(6);
+      setMaxVisibleParticipants(7);
     } else {
       // Desktops and larger screens
-      setMaxVisibleParticipants(8);
+      setMaxVisibleParticipants(7);
     }
   }, []);
 
@@ -106,6 +134,43 @@ export default function MyVideoApp({
     return !participant.stream?.getAudioTracks()[0]?.enabled;
   };
 
+  const handleParticipantClick = async (externalId: string) => {
+    try {
+      const peerData = await getPeerByUuid(externalId);
+      setSelectedPeer(peerData);
+    } catch (error) {
+      console.error("Error fetching peer data:", error);
+      setSelectedPeer(null);
+    }
+  };
+
+  const handleSendUSDT = async () => {
+    if (selectedPeer && selectedPeer.metamaskWallet) {
+      try {
+        const success = await sendUSDT(selectedPeer.metamaskWallet, usdtAmount);
+        setUsdtAmount("");
+        setSelectedPeer(null);
+
+        if (success) {
+          // Send a special chat message for money transfer
+          actions.sendChatMessage(
+            JSON.stringify({
+              type: "moneyTransfer",
+              amount: usdtAmount,
+              recipient: selectedPeer.displayName,
+            } as MoneyTransferMessage)
+          );
+        } else {
+          // Show an error notification
+          toast.error("Failed to send USDT");
+        }
+      } catch (error) {
+        console.error("Error sending USDT:", error);
+        toast.error("Error sending USDT");
+      }
+    }
+  };
+
   if (error) {
     return <div className="text-red-500 text-center p-4">{error.message}</div>;
   }
@@ -121,8 +186,9 @@ export default function MyVideoApp({
         {visibleParticipants.map((p) => (
           <div
             key={p.id}
-            className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative"
+            className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative cursor-pointer"
             style={{ minWidth: "150px", maxWidth: "300px" }}
+            onClick={() => handleParticipantClick(p.externalId ?? "")}
           >
             {p.stream ? (
               <VideoView
@@ -165,11 +231,60 @@ export default function MyVideoApp({
           </div>
         )}
       </div>
+
+      {/* Selected Peer Information Dialog */}
+      <Dialog open={!!selectedPeer} onOpenChange={() => setSelectedPeer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Selected Participant</DialogTitle>
+            <DialogDescription>
+              Details of the selected participant
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPeer && (
+            <div className="py-4">
+              <p className="mb-2">
+                <span className="font-semibold">Display Name:</span>{" "}
+                {selectedPeer.displayName}
+              </p>
+              <p className="mb-4">
+                <span className="font-semibold">MetaMask Wallet:</span>{" "}
+                {selectedPeer.metamaskWallet}
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="usdtAmount">USDT Amount</Label>
+                <Input
+                  id="usdtAmount"
+                  type="number"
+                  value={usdtAmount}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setUsdtAmount(e.target.value)
+                  }
+                  placeholder="Enter USDT amount"
+                />
+              </div>
+              <Button
+                onClick={handleSendUSDT}
+                disabled={!account || sendingUSDT || !usdtAmount}
+                className="mt-4"
+              >
+                {sendingUSDT ? "Sending..." : "Send USDT"}
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setSelectedPeer(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ChatSidebar
         sendAMessage={actions.sendChatMessage}
         chatMessages={chatMessages}
         localId={localParticipant?.id || ""}
+        displayName={displayName}
       />
+
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
         <button
           onClick={handleLeaveCall}
