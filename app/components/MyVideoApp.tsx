@@ -5,9 +5,14 @@ import ChatSidebar from "./ChatSidebar";
 interface MyVideoAppProps {
   roomUrl: string;
   localStream: MediaStream;
+  displayName: string; // Add this prop to receive the desired display name
 }
 
-export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
+export default function MyVideoApp({
+  roomUrl,
+  localStream,
+  displayName,
+}: MyVideoAppProps) {
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [maxVisibleParticipants, setMaxVisibleParticipants] = React.useState(6);
@@ -19,7 +24,7 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
     },
   });
 
-  const { remoteParticipants, localParticipant } = state;
+  const { remoteParticipants, localParticipant, chatMessages } = state;
   const { joinRoom, leaveRoom } = actions;
 
   const updateMaxVisibleParticipants = React.useCallback(() => {
@@ -83,7 +88,7 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
   }
 
   return (
-    <div className="bg-gray-900 h-screen w-screen p-6 items-start justify-start bg-black relative">
+    <div className="bg-gray-900 h-screen w-screen p-6 items-start justify-start relative">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {/* Visible Participants */}
         {visibleParticipants.map((p) => (
@@ -120,7 +125,7 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
             />
           )}
           <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm">
-            You
+            {displayName || "You"}
           </div>
         </div>
 
@@ -131,7 +136,11 @@ export default function MyVideoApp({ roomUrl, localStream }: MyVideoAppProps) {
           </div>
         )}
       </div>
-      <ChatSidebar />
+      <ChatSidebar
+        sendAMessage={actions.sendChatMessage}
+        chatMessages={chatMessages}
+        localId={localParticipant?.id || ""}
+      />
     </div>
   );
 }

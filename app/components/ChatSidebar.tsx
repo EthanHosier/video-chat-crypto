@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageCircle, ChevronDown, Send } from "lucide-react";
+import { MessageCircle, ChevronDown, Send, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChatMessage } from "@whereby.com/browser-sdk/react";
 
 interface Message {
   id: number;
@@ -8,15 +9,43 @@ interface Message {
   sender: "user" | "other";
 }
 
-const ChatSidebar: React.FC = () => {
+const ChatSidebar: React.FC<{
+  sendAMessage: (text: string) => void;
+  chatMessages: ChatMessage[];
+  localId: string;
+}> = ({ sendAMessage, chatMessages, localId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    console.log({ chatMessages });
+    setMessages(
+      chatMessages.map((message) => ({
+        id: Number(message.timestamp),
+        text: message.text,
+        sender: message.senderId === localId ? "user" : "other",
+      }))
+    );
+  }, [chatMessages, localId]);
+
+  useEffect(() => {
+    if (!isOpen && chatMessages.length > messages.length) {
+      setUnreadCount(chatMessages.length - messages.length);
+    }
+  }, [chatMessages, messages, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setUnreadCount(0);
+    }
+  }, [isOpen]);
 
   const sendMessage = () => {
     if (inputText.trim()) {
@@ -24,6 +53,7 @@ const ChatSidebar: React.FC = () => {
         ...messages,
         { id: Date.now(), text: inputText, sender: "user" },
       ]);
+      sendAMessage(inputText);
       setInputText("");
     }
   };
@@ -37,7 +67,12 @@ const ChatSidebar: React.FC = () => {
         )}
         onClick={() => setIsOpen(true)}
       >
-        <MessageCircle size={24} />
+        <div className="relative">
+          <MessageCircle size={24} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 rounded-full h-3 w-3" />
+          )}
+        </div>
       </button>
       <div
         className={cn(
