@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useLocalStream } from "@/app/hooks/useLocalStream";
+import React, { useState } from "react";
 import { useRoomConnection, VideoView } from "@whereby.com/browser-sdk/react";
 import ChatSidebar from "./ChatSidebar";
 import { PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
@@ -21,11 +20,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Image from "next/image";
 
 type MoneyTransferMessage = {
   type: "moneyTransfer";
   amount: string;
   recipient: string;
+  senderName: string;
 };
 
 interface MyVideoAppProps {
@@ -166,12 +167,12 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
         setSelectedPeer(null);
 
         if (success) {
-          // Send a special chat message for money transfer
           actions.sendChatMessage(
             JSON.stringify({
               type: "moneyTransfer",
               amount: usdtAmount,
               recipient: selectedPeer.displayName,
+              senderName: displayName,
             } as MoneyTransferMessage)
           );
         } else {
@@ -194,138 +195,172 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
   }
 
   return (
-    <div className="bg-gray-900 h-screen w-screen p-6 items-start justify-start relative">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {/* Visible Participants */}
-        {visibleParticipants.map((p) => (
-          <div
-            key={p.id}
-            className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative cursor-pointer"
-            style={{ minWidth: "150px", maxWidth: "300px" }}
-            onClick={() => handleParticipantClick(p.externalId ?? "")}
-          >
-            {p.stream ? (
-              <VideoView
-                stream={p.stream}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white">
-                No video
-              </div>
-            )}
-            <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
-              {p.displayName || "Guest"}
-              {isParticipantMuted(p) && <MicOff size={16} className="ml-2" />}
-            </div>
-          </div>
-        ))}
-
-        {/* Local Participant */}
-        <div
-          className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative"
-          style={{ minWidth: "150px", maxWidth: "300px" }}
-        >
-          {localParticipant && localParticipant.stream && (
-            <VideoView
-              stream={localParticipant.stream}
-              className="w-full h-full object-cover"
+    <div className="bg-gray-900 h-screen w-screen flex flex-col">
+      {/* Updated Responsive Banner with Smaller Buttons */}
+      <div className="bg-[#3478F3] text-white py-4 px-4 sm:px-6 md:px-8 flex flex-row items-center justify-between shadow-lg">
+        <div className="flex items-center space-x-3 mb-3 sm:mb-0">
+          <div className="relative">
+            <img
+              src="https://media.istockphoto.com/id/1442556244/photo/portrait-of-young-beautiful-woman-with-perfect-smooth-skin-isolated-over-white-background.jpg?s=612x612&w=0&k=20&c=4S7HufG4HDXznwuxFdliWndEAcWGKGvgqC45Ig0Zqog="
+              alt={displayName}
+              width={48}
+              height={48}
+              className="rounded-full border-2 border-white aspect-square object-cover"
             />
-          )}
-          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
-            {displayName || "You"}
-            {isMuted && <MicOff size={16} className="ml-2" />}
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+          </div>
+          <div>
+            <span className="font-semibold text-lg">{displayName}</span>
+            <p className="text-xs text-blue-100">Online</p>
           </div>
         </div>
-
-        {/* Additional Participants Count */}
-        {additionalParticipants > 0 && (
-          <div className="aspect-square bg-gray-800 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
-            +{additionalParticipants}
-          </div>
-        )}
+        <div className="bg-white bg-opacity-20 rounded-full py-2 px-3 flex items-center space-x-2">
+          <img
+            src="https://thegivingblock.com/wp-content/uploads/2023/02/TetherUSDT.png"
+            alt="USDT"
+            width={20}
+            height={20}
+          />
+          <span className="font-bold text-base">400 USDT</span>
+        </div>
       </div>
 
-      {/* Selected Peer Information Dialog */}
-      <Dialog open={!!selectedPeer} onOpenChange={() => setSelectedPeer(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Selected Participant</DialogTitle>
-            <DialogDescription>
-              Details of the selected participant
-            </DialogDescription>
-          </DialogHeader>
-          {selectedPeer && (
-            <div className="py-4">
-              <p className="mb-2">
-                <span className="font-semibold">Display Name:</span>{" "}
-                {selectedPeer.displayName}
-              </p>
-              <p className="mb-4">
-                <span className="font-semibold">MetaMask Wallet:</span>{" "}
-                {selectedPeer.metamaskWallet}
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="usdtAmount">USDT Amount</Label>
-                <Input
-                  id="usdtAmount"
-                  type="number"
-                  value={usdtAmount}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setUsdtAmount(e.target.value)
-                  }
-                  placeholder="Enter USDT amount"
+      <div className="flex-grow p-6 items-start justify-start relative">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Visible Participants */}
+          {visibleParticipants.map((p) => (
+            <div
+              key={p.id}
+              className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative cursor-pointer"
+              style={{ minWidth: "150px", maxWidth: "300px" }}
+              onClick={() => handleParticipantClick(p.externalId ?? "")}
+            >
+              {p.stream ? (
+                <VideoView
+                  stream={p.stream}
+                  className="w-full h-full object-cover"
                 />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white">
+                  No video
+                </div>
+              )}
+              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
+                {p.displayName || "Guest"}
+                {isParticipantMuted(p) && <MicOff size={16} className="ml-2" />}
               </div>
-              <Button
-                onClick={handleSendUSDT}
-                disabled={!account || sendingUSDT || !usdtAmount}
-                className="mt-4"
-              >
-                {sendingUSDT ? "Sending..." : "Send USDT"}
-              </Button>
+            </div>
+          ))}
+
+          {/* Local Participant */}
+          <div
+            className="aspect-square bg-gray-800 rounded-lg overflow-hidden relative"
+            style={{ minWidth: "150px", maxWidth: "300px" }}
+          >
+            {localParticipant && localParticipant.stream && (
+              <VideoView
+                stream={localParticipant.stream}
+                className="w-full h-full object-cover"
+              />
+            )}
+            <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
+              {displayName || "You"}
+              {isMuted && <MicOff size={16} className="ml-2" />}
+            </div>
+          </div>
+
+          {/* Additional Participants Count */}
+          {additionalParticipants > 0 && (
+            <div className="aspect-square bg-gray-800 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
+              +{additionalParticipants}
             </div>
           )}
-          <DialogFooter>
-            <Button onClick={() => setSelectedPeer(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      <ChatSidebar
-        sendAMessage={actions.sendChatMessage}
-        chatMessages={chatMessages}
-        localId={localParticipant?.id || ""}
-        displayName={displayName}
-      />
+        {/* Selected Peer Information Dialog */}
+        <Dialog
+          open={!!selectedPeer}
+          onOpenChange={() => setSelectedPeer(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Selected Participant</DialogTitle>
+              <DialogDescription>
+                Details of the selected participant
+              </DialogDescription>
+            </DialogHeader>
+            {selectedPeer && (
+              <div className="py-4">
+                <p className="mb-2">
+                  <span className="font-semibold">Display Name:</span>{" "}
+                  {selectedPeer.displayName}
+                </p>
+                <p className="mb-4">
+                  <span className="font-semibold">MetaMask Wallet:</span>{" "}
+                  {selectedPeer.metamaskWallet}
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="usdtAmount">USDT Amount</Label>
+                  <Input
+                    id="usdtAmount"
+                    type="number"
+                    value={usdtAmount}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setUsdtAmount(e.target.value)
+                    }
+                    placeholder="Enter USDT amount"
+                  />
+                </div>
+                <Button
+                  onClick={handleSendUSDT}
+                  disabled={!account || sendingUSDT || !usdtAmount}
+                  className="mt-4"
+                >
+                  {sendingUSDT ? "Sending..." : "Send USDT"}
+                </Button>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setSelectedPeer(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
-        <button
-          onClick={handleLeaveCall}
-          className="bg-red-500 p-3 rounded-full text-white hover:bg-red-600"
-        >
-          <PhoneOff size={24} />
-        </button>
-        <button
-          onClick={handleToggleMute}
-          className={`p-3 rounded-full text-white ${
-            isMuted
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-gray-600 hover:bg-gray-700"
-          }`}
-        >
-          {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
-        </button>
-        <button
-          onClick={handleToggleCamera}
-          className={`p-3 rounded-full text-white ${
-            isCameraOff
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-gray-600 hover:bg-gray-700"
-          }`}
-        >
-          {isCameraOff ? <VideoOff size={24} /> : <Video size={24} />}
-        </button>
+        <ChatSidebar
+          sendAMessage={actions.sendChatMessage}
+          chatMessages={chatMessages}
+          localId={localParticipant?.id || ""}
+          displayName={displayName}
+        />
+
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
+          <button
+            onClick={handleLeaveCall}
+            className="bg-red-500 p-3 rounded-full text-white hover:bg-red-600"
+          >
+            <PhoneOff size={24} />
+          </button>
+          <button
+            onClick={handleToggleMute}
+            className={`p-3 rounded-full text-white ${
+              isMuted
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-gray-600 hover:bg-gray-700"
+            }`}
+          >
+            {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+          </button>
+          <button
+            onClick={handleToggleCamera}
+            className={`p-3 rounded-full text-white ${
+              isCameraOff
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-gray-600 hover:bg-gray-700"
+            }`}
+          >
+            {isCameraOff ? <VideoOff size={24} /> : <Video size={24} />}
+          </button>
+        </div>
       </div>
     </div>
   );

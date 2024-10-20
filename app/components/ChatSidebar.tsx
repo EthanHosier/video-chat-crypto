@@ -3,6 +3,7 @@ import { MessageCircle, ChevronDown, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "@whereby.com/browser-sdk/react";
 import toast from "react-hot-toast";
+import Confetti from "react-confetti";
 
 interface Message {
   id: number;
@@ -18,6 +19,13 @@ interface ChatMessageData {
   recipient?: string;
 }
 
+type MoneyTransferMessage = {
+  type: "moneyTransfer";
+  amount: string;
+  recipient: string;
+  senderName: string;
+};
+
 const ChatSidebar: React.FC<{
   sendAMessage: (text: string) => void;
   chatMessages: ChatMessage[];
@@ -29,6 +37,10 @@ const ChatSidebar: React.FC<{
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [processedTransfers, setProcessedTransfers] = useState<
+    Set<ChatMessage>
+  >(new Set());
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,6 +69,26 @@ const ChatSidebar: React.FC<{
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    chatMessages.forEach((message) => {
+      try {
+        const parsedMessage: ChatMessageData = JSON.parse(message.text);
+        if (
+          parsedMessage.type === "moneyTransfer" &&
+          !processedTransfers.has(message)
+        ) {
+          triggerMoneyConfetti();
+          toast.success(
+            `${parsedMessage.senderName} sent ${parsedMessage.amount} USDT to ${parsedMessage.recipient}`
+          );
+          setProcessedTransfers((prev) => new Set(prev).add(message));
+        }
+      } catch (e) {
+        // Ignore parsing errors for non-JSON messages
+      }
+    });
+  }, [chatMessages, processedTransfers]);
+
   const sendMessage = () => {
     if (inputText.trim()) {
       const messageData: ChatMessageData = {
@@ -69,15 +101,23 @@ const ChatSidebar: React.FC<{
     }
   };
 
+  const triggerMoneyConfetti = () => {
+    console.log("Triggering money confetti");
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
   const renderMessage = (message: ChatMessage, key: string) => {
     try {
       const parsedMessage: ChatMessageData = JSON.parse(message.text);
 
       if (parsedMessage.type === "moneyTransfer") {
-        toast.success(
-          `Sent ${parsedMessage.amount} USDT to ${parsedMessage.recipient}`
+        return (
+          <div key={key} className="mb-2 text-green-500 font-bold">
+            Money Transfer: {parsedMessage.senderName} sent{" "}
+            {parsedMessage.amount} USDT to {parsedMessage.recipient}
+          </div>
         );
-        return null;
       }
 
       return (
@@ -87,6 +127,7 @@ const ChatSidebar: React.FC<{
         </div>
       );
     } catch (e) {
+      console.error("Error parsing message:", e);
       // Fallback for non-JSON messages (if any)
       return (
         <div key={key} className="mb-2">
@@ -100,11 +141,27 @@ const ChatSidebar: React.FC<{
   };
 
   const messagess = useMemo(() => {
+    console.log("Rendering messages:", chatMessages);
     return chatMessages.map((m, i) => renderMessage(m, i + ""));
   }, [chatMessages]);
 
   return (
     <>
+      {showConfetti && (
+        <Confetti
+          width={window.innerWidth}
+          height={window.innerHeight}
+          recycle={false}
+          numberOfPieces={200}
+          confettiSource={{
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            w: 0,
+            h: 0,
+          }}
+          colors={["#85bb65", "#85bb65", "#85bb65", "#FFD700"]} // Green and gold colors for money
+        />
+      )}
       <button
         className={cn(
           "fixed bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg z-20 hover:bg-blue-600 transition-colors duration-300",
