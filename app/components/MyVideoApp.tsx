@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Image from "next/image";
+import QuestionsSidebar from "./QuestionsSidebar";
+import QuestionBanner from "./QuestionBanner";
 
 type MoneyTransferMessage = {
   type: "moneyTransfer";
@@ -53,6 +55,7 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
   const { account, sendUSDT, loading: sendingUSDT } = useMetaMaskLogin();
   const [usdtAmount, setUsdtAmount] = React.useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
       audio: true,
@@ -185,6 +188,31 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
       }
     }
   };
+
+  const handleQuestionSubmit = (question: string, answer: string) => {
+    actions.sendChatMessage(
+      JSON.stringify({
+        type: "question",
+        question,
+        answer,
+      })
+    );
+  };
+
+  React.useEffect(() => {
+    const handleQuestionMessage = (message: any) => {
+      try {
+        const parsedMessage = JSON.parse(message.text);
+        if (parsedMessage.type === "question") {
+          setCurrentQuestion(parsedMessage.question);
+        }
+      } catch (error) {
+        console.error("Error parsing message:", error);
+      }
+    };
+
+    chatMessages.forEach(handleQuestionMessage);
+  }, [chatMessages]);
 
   if (error) {
     return <div className="text-red-500 text-center p-4">{error.message}</div>;
@@ -332,6 +360,12 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
           localId={localParticipant?.id || ""}
           displayName={displayName}
         />
+
+        {account === process.env.NEXT_PUBLIC_ADMIN_WALLET && (
+          <QuestionsSidebar onSubmit={handleQuestionSubmit} />
+        )}
+
+        {currentQuestion && <QuestionBanner question={currentQuestion} />}
 
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
           <button
