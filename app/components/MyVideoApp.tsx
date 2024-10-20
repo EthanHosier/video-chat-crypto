@@ -56,6 +56,7 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
   const [usdtAmount, setUsdtAmount] = React.useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
+  const [currentAnswer, setCurrentAnswer] = useState<string | null>(null);
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
       audio: true,
@@ -205,6 +206,7 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
         const parsedMessage = JSON.parse(message.text);
         if (parsedMessage.type === "question") {
           setCurrentQuestion(parsedMessage.question);
+          setCurrentAnswer(parsedMessage.answer);
         }
       } catch (error) {
         console.error("Error parsing message:", error);
@@ -359,6 +361,8 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
           chatMessages={chatMessages}
           localId={localParticipant?.id || ""}
           displayName={displayName}
+          currentQuestion={currentQuestion}
+          currentAnswer={currentAnswer}
         />
 
         {account === process.env.NEXT_PUBLIC_ADMIN_WALLET && (
