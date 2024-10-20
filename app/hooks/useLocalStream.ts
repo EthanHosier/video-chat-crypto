@@ -16,7 +16,10 @@ export function useLocalStream() {
       }
     }
 
-    getMediaStream();
+    // Only run on the client-side
+    if (typeof window !== "undefined" && navigator.mediaDevices) {
+      getMediaStream();
+    }
   }, []);
 
   return localStream;

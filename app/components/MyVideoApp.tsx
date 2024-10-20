@@ -1,4 +1,7 @@
-import * as React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useLocalStream } from "@/app/hooks/useLocalStream";
 import { useRoomConnection, VideoView } from "@whereby.com/browser-sdk/react";
 import ChatSidebar from "./ChatSidebar";
 import { PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
@@ -27,16 +30,15 @@ type MoneyTransferMessage = {
 
 interface MyVideoAppProps {
   roomUrl: string;
-  localStream: MediaStream;
-  displayName: string; // Add this prop to receive the desired display name
+  displayName: string;
   externalId: string;
 }
 
-export default function MyVideoApp({
+const MyVideoApp: React.FC<MyVideoAppProps> = ({
   roomUrl,
   displayName,
   externalId,
-}: MyVideoAppProps) {
+}) => {
   const router = useRouter();
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -49,6 +51,7 @@ export default function MyVideoApp({
   } | null>(null);
   const { account, sendUSDT, loading: sendingUSDT } = useMetaMaskLogin();
   const [usdtAmount, setUsdtAmount] = React.useState("");
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
       audio: true,
@@ -61,6 +64,10 @@ export default function MyVideoApp({
   const { joinRoom, leaveRoom, toggleMicrophone } = actions;
 
   const updateMaxVisibleParticipants = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const width = window.innerWidth;
     if (width < 640) {
       // Small phones
@@ -79,9 +86,16 @@ export default function MyVideoApp({
 
   React.useEffect(() => {
     updateMaxVisibleParticipants();
-    window.addEventListener("resize", updateMaxVisibleParticipants);
-    return () =>
-      window.removeEventListener("resize", updateMaxVisibleParticipants);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", updateMaxVisibleParticipants);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", updateMaxVisibleParticipants);
+      }
+    };
   }, [updateMaxVisibleParticipants]);
 
   React.useEffect(() => {
@@ -315,4 +329,6 @@ export default function MyVideoApp({
       </div>
     </div>
   );
-}
+};
+
+export default MyVideoApp;
