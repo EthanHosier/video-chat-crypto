@@ -62,7 +62,7 @@ const ChatSidebar: React.FC<{
     <>
       <button
         className={cn(
-          "fixed bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg z-10 hover:bg-blue-600 transition-colors duration-300",
+          "fixed bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg z-20 hover:bg-blue-600 transition-colors duration-300",
           isOpen && "hidden"
         )}
         onClick={() => setIsOpen(true)}
@@ -76,7 +76,7 @@ const ChatSidebar: React.FC<{
       </button>
       <div
         className={cn(
-          "fixed right-0 bottom-0 h-[90vh] w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col rounded-t-2xl overflow-hidden",
+          "fixed right-0 bottom-0 h-[90vh] w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col rounded-t-2xl overflow-hidden z-30",
           isOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
@@ -95,7 +95,7 @@ const ChatSidebar: React.FC<{
               }`}
             >
               <div
-                className={`max-w-[70%] p-3 rounded-2xl ${
+                className={`max-w-[70%] p-3 rounded-2xl break-words ${
                   message.sender === "user"
                     ? "bg-blue-500 text-white rounded-br-none"
                     : "bg-gray-200 text-gray-800 rounded-bl-none"

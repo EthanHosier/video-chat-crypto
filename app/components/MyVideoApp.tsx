@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useRoomConnection, VideoView } from "@whereby.com/browser-sdk/react";
 import ChatSidebar from "./ChatSidebar";
+import { PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface MyVideoAppProps {
   roomUrl: string;
@@ -13,9 +15,12 @@ export default function MyVideoApp({
   localStream,
   displayName,
 }: MyVideoAppProps) {
+  const router = useRouter();
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [maxVisibleParticipants, setMaxVisibleParticipants] = React.useState(6);
+  const [isMuted, setIsMuted] = React.useState(true);
+  const [isCameraOff, setIsCameraOff] = React.useState(false);
 
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
@@ -25,7 +30,7 @@ export default function MyVideoApp({
   });
 
   const { remoteParticipants, localParticipant, chatMessages } = state;
-  const { joinRoom, leaveRoom } = actions;
+  const { joinRoom, leaveRoom, toggleMicrophone } = actions;
 
   const updateMaxVisibleParticipants = React.useCallback(() => {
     const width = window.innerWidth;
@@ -79,6 +84,28 @@ export default function MyVideoApp({
     remoteParticipants.length - (maxVisibleParticipants - 1)
   );
 
+  const handleLeaveCall = () => {
+    leaveRoom();
+    router.push("/");
+  };
+
+  const handleToggleMute = () => {
+    const newMuteState = !isMuted;
+    setIsMuted(newMuteState);
+    toggleMicrophone(newMuteState);
+  };
+
+  const handleToggleCamera = () => {
+    setIsCameraOff(!isCameraOff);
+    localParticipant?.stream
+      ?.getVideoTracks()
+      .forEach((track) => (track.enabled = isCameraOff));
+  };
+
+  const isParticipantMuted = (participant: any) => {
+    return !participant.stream?.getAudioTracks()[0]?.enabled;
+  };
+
   if (error) {
     return <div className="text-red-500 text-center p-4">{error.message}</div>;
   }
@@ -107,8 +134,9 @@ export default function MyVideoApp({
                 No video
               </div>
             )}
-            <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm">
+            <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
               {p.displayName || "Guest"}
+              {isParticipantMuted(p) && <MicOff size={16} className="ml-2" />}
             </div>
           </div>
         ))}
@@ -124,8 +152,9 @@ export default function MyVideoApp({
               className="w-full h-full object-cover"
             />
           )}
-          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm">
+          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
             {displayName || "You"}
+            {isMuted && <MicOff size={16} className="ml-2" />}
           </div>
         </div>
 
@@ -141,6 +170,34 @@ export default function MyVideoApp({
         chatMessages={chatMessages}
         localId={localParticipant?.id || ""}
       />
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
+        <button
+          onClick={handleLeaveCall}
+          className="bg-red-500 p-3 rounded-full text-white hover:bg-red-600"
+        >
+          <PhoneOff size={24} />
+        </button>
+        <button
+          onClick={handleToggleMute}
+          className={`p-3 rounded-full text-white ${
+            isMuted
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-gray-600 hover:bg-gray-700"
+          }`}
+        >
+          {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+        </button>
+        <button
+          onClick={handleToggleCamera}
+          className={`p-3 rounded-full text-white ${
+            isCameraOff
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-gray-600 hover:bg-gray-700"
+          }`}
+        >
+          {isCameraOff ? <VideoOff size={24} /> : <Video size={24} />}
+        </button>
+      </div>
     </div>
   );
 }
