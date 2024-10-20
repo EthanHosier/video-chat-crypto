@@ -21,6 +21,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Image from "next/image";
+import QuestionsSidebar from "./QuestionsSidebar";
+import QuestionBanner from "./QuestionBanner";
+import Confetti from "react-confetti";
 
 type MoneyTransferMessage = {
   type: "moneyTransfer";
@@ -53,6 +56,8 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
   const { account, sendUSDT, loading: sendingUSDT } = useMetaMaskLogin();
   const [usdtAmount, setUsdtAmount] = React.useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
+  const [currentAnswer, setCurrentAnswer] = useState<string | null>(null);
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: {
       audio: true,
@@ -63,6 +68,7 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
 
   const { remoteParticipants, localParticipant, chatMessages } = state;
   const { joinRoom, leaveRoom, toggleMicrophone } = actions;
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const updateMaxVisibleParticipants = React.useCallback(() => {
     if (typeof window === "undefined") {
@@ -186,6 +192,42 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
     }
   };
 
+  const handleQuestionSubmit = (question: string, answer: string) => {
+    actions.sendChatMessage(
+      JSON.stringify({
+        type: "question",
+        question,
+        answer,
+      })
+    );
+  };
+
+  const triggerConfetti = () => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
+  React.useEffect(() => {
+    const handleMessage = (message: any) => {
+      try {
+        const parsedMessage = JSON.parse(message.text);
+        if (parsedMessage.type === "question") {
+          setCurrentQuestion(parsedMessage.question);
+          setCurrentAnswer(parsedMessage.answer);
+        } else if (parsedMessage.type === "correctAnswer") {
+          triggerConfetti();
+          toast.success(
+            `${parsedMessage.displayName} gave the correct answer!`
+          );
+        }
+      } catch (error) {
+        console.error("Error parsing message:", error);
+      }
+    };
+
+    chatMessages.forEach(handleMessage);
+  }, [chatMessages]);
+
   if (error) {
     return <div className="text-red-500 text-center p-4">{error.message}</div>;
   }
@@ -196,6 +238,14 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
 
   return (
     <div className="bg-gray-900 h-screen w-screen flex flex-col">
+      {showConfetti && (
+        <Confetti
+          width={window.innerWidth}
+          height={window.innerHeight}
+          recycle={false}
+          numberOfPieces={200}
+        />
+      )}
       {/* Updated Responsive Banner with Smaller Buttons */}
       <div className="bg-[#3478F3] text-white py-4 px-4 sm:px-6 md:px-8 flex flex-row items-center justify-between shadow-lg">
         <div className="flex items-center space-x-3 mb-3 sm:mb-0">
@@ -331,7 +381,15 @@ const MyVideoApp: React.FC<MyVideoAppProps> = ({
           chatMessages={chatMessages}
           localId={localParticipant?.id || ""}
           displayName={displayName}
+          currentQuestion={currentQuestion}
+          currentAnswer={currentAnswer}
         />
+
+        {account === process.env.NEXT_PUBLIC_ADMIN_WALLET && (
+          <QuestionsSidebar onSubmit={handleQuestionSubmit} />
+        )}
+
+        {currentQuestion && <QuestionBanner question={currentQuestion} />}
 
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 z-10">
           <button

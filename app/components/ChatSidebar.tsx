@@ -26,12 +26,23 @@ type MoneyTransferMessage = {
   senderName: string;
 };
 
-const ChatSidebar: React.FC<{
+interface ChatSidebarProps {
   sendAMessage: (text: string) => void;
   chatMessages: ChatMessage[];
   localId: string;
   displayName: string;
-}> = ({ sendAMessage, chatMessages, localId, displayName }) => {
+  currentQuestion: string | null;
+  currentAnswer: string | null;
+}
+
+const ChatSidebar: React.FC<ChatSidebarProps> = ({
+  sendAMessage,
+  chatMessages,
+  localId,
+  displayName,
+  currentQuestion,
+  currentAnswer,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -97,12 +108,29 @@ const ChatSidebar: React.FC<{
         senderName: displayName,
       };
       sendAMessage(JSON.stringify(messageData));
+
+      // Check if the answer is correct
+      if (
+        currentQuestion &&
+        currentAnswer &&
+        inputText.trim().toLowerCase() === currentAnswer.toLowerCase()
+      ) {
+        triggerCorrectAnswerConfetti();
+        toast.success(`Correct answer! Well done, ${displayName}!`);
+      }
+
       setInputText("");
     }
   };
 
   const triggerMoneyConfetti = () => {
     console.log("Triggering money confetti");
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
+  const triggerCorrectAnswerConfetti = () => {
+    console.log("Triggering correct answer confetti");
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 5000);
   };
