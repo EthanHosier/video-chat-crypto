@@ -34,7 +34,7 @@ export default function PeersPage() {
     <>
       <WherebyProvider>
         <MyVideoApp
-          roomUrl="https://yeahyeah.whereby.com/test100363d44-36dc-43ae-93b3-09dd1c6567a0"
+          roomUrl="https://yeahyeah.whereby.com/adasdasdb9eaab0a-e7ce-457b-b5e0-cbc46b1095c3"
           displayName={displayName}
           externalId={uuid || ""}
         />
